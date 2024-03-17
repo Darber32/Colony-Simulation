@@ -61,13 +61,19 @@ People::People(sf::Vector2f pos, std::string type)
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f(WIN_WIDTH / MAP_WIDTH, WIN_HEIGHT / MAP_HEIGHT));
 	model.setTexture(&texture);
-	model.setTextureRect(sf::IntRect(0, vector.y / 12, vector.x / 5, vector.y / 12));
+	text_pos.left = 0;
+	text_pos.top = vector.y / 12;
+	text_pos.width = vector.x / 5;
+	text_pos.height = vector.y / 12;
+	model.setTextureRect(text_pos);
 	for (int i = 0; i < INVENTORY_SIZE; i++)
 		inventory[i] = nullptr;
+	Village::Get_Instance()->Add_People(this);
 }
 
 People::~People()
 {
+	Village::Get_Instance()->Delete_People(this);
 	if (target != nullptr)
 		target->Set_Target_People(nullptr);
 	Village::Get_Instance()->Change_Count(-1, "people");
@@ -109,6 +115,43 @@ void People::Move()
 	}
 }
 
+void People::Walk()
+{
+	if (not was_update)
+	{
+		sf::Vector2u pos = Get_Index();
+		sf::Vector2u new_pos;
+		int direction;
+		do
+		{
+			direction = rand() % 4;
+			switch (direction)
+			{
+			case 0:
+				new_pos = sf::Vector2u(pos.x, pos.y - 1);
+				break;
+			case 1:
+				new_pos = sf::Vector2u(pos.x, pos.y + 1);
+				break;
+			case 2:
+				new_pos = sf::Vector2u(pos.x - 1, pos.y);
+				break;
+			case 3:
+
+				new_pos = sf::Vector2u(pos.x + 1, pos.y);
+				break;
+			}
+		} while (Game::Get_Instance()->Get_Object(new_pos.y, new_pos.x) != nullptr);
+		Change_Texture(direction);
+		Game::Get_Instance()->Set_Object(new_pos.y, new_pos.x, this);
+		Game::Get_Instance()->Set_Object(pos.y, pos.x, nullptr);
+		pos.x = new_pos.x * (WIN_WIDTH / MAP_WIDTH);
+		pos.y = new_pos.y * (WIN_HEIGHT / MAP_HEIGHT);
+		model.setPosition((sf::Vector2f)pos);
+		Was_Update();
+	}
+}
+
 void People::Update()
 {
 	if (not was_update)
@@ -139,26 +182,32 @@ void People::Update()
 					}
 				}
 			}
-			if (target != nullptr and way.empty())
+			if (target == nullptr)
+				Walk();
+			else
 			{
-				target_pos = (sf::Vector2u)target->Get_Pos();
-				Find_Shortest_Way();
-			}
-			if (not way.empty() and not in_building)
-				Move();
-			if (not in_building)
-			{
-				sleep_count--;
-				if (sleep_count <= 0)
+				if (way.empty())
 				{
-					heal_points--;
-					sleep_count += max_sleep / 2;
+					target_pos = (sf::Vector2u)target->Get_Pos();
+					Find_Shortest_Way();
 				}
-				hunger_points--;
-				if (hunger_points <= 0)
+
+				if (not way.empty() and not in_building)
+					Move();
+				if (not in_building)
 				{
-					heal_points--;
-					hunger_points = max_hunger_points / 2;
+					sleep_count--;
+					if (sleep_count <= 0)
+					{
+						heal_points--;
+						sleep_count += max_sleep / 2;
+					}
+					hunger_points--;
+					if (hunger_points <= 0)
+					{
+						heal_points--;
+						hunger_points = max_hunger_points / 2;
+					}
 				}
 			}
 		}
@@ -182,10 +231,16 @@ void People::Find_Nearest_Object(std::string type)
 			Interactable_Object* object = (Interactable_Object*)Game::Get_Instance()->Get_Object(i, j);
 			if (object != nullptr)
 			{
-				if (object->Get_Type() == "house" or object->Get_Type() == "storage" or object->Get_Type() == "kitchen")
+				if (object->Get_Type() == "house" or object->Get_Type() == "kitchen")
 				{
 					Buildings* building = (Buildings*)object;
 					if (building->Get_Type() == type and not building->Is_Anybody_Inside() and object->Get_Target_People() == nullptr)
+						arr.push_back(object);
+				}
+				else if (object->Get_Type() == "storage")
+				{
+					Storage* building = (Storage*)object;
+					if (building->Get_Type() == type and not building->Is_Anybody_Inside() and object->Get_Target_People() == nullptr and not building->Is_Full())
 						arr.push_back(object);
 				}
 				else
@@ -287,15 +342,15 @@ void People::Find_Shortest_Way()
 	}
 	wave.clear();
 	old_wave.clear();
-	/*for (int i = 0; i < MAP_HEIGHT; i++)
-	{
-		for (int j = 0; j < MAP_WIDTH; j++)
-			if (map[i][j] > 10)
-				std::cout << map[i][j] << " ";
-			else
-				std::cout << " " << map[i][j] << " ";
-		std::cout << std::endl;
-	}*/
+	//for (int i = 0; i < MAP_HEIGHT; i++)
+	//{
+	//	for (int j = 0; j < MAP_WIDTH; j++)
+	//		if (map[i][j] > 10)
+	//			std::cout << map[i][j] << " ";
+	//		else
+	//			std::cout << " " << map[i][j] << " ";
+	//	std::cout << std::endl;
+	//}
 	if (target != nullptr)
 	{
 		if (target->Get_Type() == "house" or target->Get_Type() == "storage" or target->Get_Type() == "kitchen" or target->Get_Type() == "scaffolding")
@@ -308,6 +363,10 @@ void People::Find_Shortest_Way()
 void People::Change_Texture(int type)
 {
 	sf::Vector2u vector = texture.getSize();
+	text_pos.left = 0;
+	text_pos.top = vector.y / 12 * type;
+	text_pos.width = vector.x / 5;
+	text_pos.height = vector.y / 12;
 	model.setTextureRect(sf::IntRect(0, vector.y / 12 * type, vector.x / 5, vector.y / 12));
 }
 
@@ -320,12 +379,19 @@ void People::Eat()
 			{
 				inventory[i]->Change_Count(-c);
 				Village::Get_Instance()->Change_Count(-c, "cooked meat");
+				if (inventory[i]->Get_Count() == 0)
+				{
+					delete inventory[i];
+					inventory[i] = nullptr;
+				}
 				c = 0;
 			}
 			else
 			{
 				Village::Get_Instance()->Change_Count(-inventory[i]->Get_Count(), "cooked meat");
 				c = inventory[i]->Change_Count(-inventory[i]->Get_Count());
+				delete inventory[i];
+				inventory[i] = nullptr;
 			}
 	if (c > 0)
 	{
@@ -340,12 +406,17 @@ void People::Eat()
 							{
 								storage->Get_Storage(k)->Change_Count(-c);
 								Village::Get_Instance()->Change_Count(-c, "cooked meat");
+								if (storage->Get_Storage(k)->Get_Count() == 0)
+								{
+									storage->Reset_Storage(k);
+								}
 								c = 0;
 							}
 							else
 							{
 								Village::Get_Instance()->Change_Count(-storage->Get_Storage(k)->Get_Count(), "cooked meat");
 								c = storage->Get_Storage(k)->Change_Count(-storage->Get_Storage(k)->Get_Count());
+								storage->Reset_Storage(k);
 							}
 				}
 	}
@@ -552,6 +623,120 @@ void People::Set_Target_Position(sf::Vector2u pos)
 std::map<std::string, int> People::Get_Priority()
 {
 	return priority;
+}
+
+void People::Show()
+{
+	sf::Event event;
+	bool flag = true;
+	sf::Texture exit_text, back_text;
+	exit_text.loadFromFile("Images/Cross.png");
+	back_text.loadFromFile("Images/Ground/Back.png");
+	sf::RectangleShape exit, image, back;
+
+	exit.setSize(sf::Vector2f(WIN_WIDTH / 30, WIN_HEIGHT / 30));
+	exit.setPosition(sf::Vector2f(WIN_WIDTH / 30 * 29, 0));
+	exit.setFillColor(sf::Color::Red);
+	exit.setTexture(&exit_text);
+
+	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
+	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 8 - WIN_HEIGHT / MAP_HEIGHT));
+	image.setTexture(&texture);
+	image.setTextureRect(text_pos);
+	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
+	back.setPosition(sf::Vector2f(0, 0));
+	back.setTexture(&back_text);
+
+	sf::Font font;
+	font.loadFromFile("consolai.ttf");
+	sf::Text text;
+	text.setFont(font);
+	text.setCharacterSize(40);
+	text.setFillColor(sf::Color::White);
+	while (flag)
+	{
+		while (window.pollEvent(event))
+		{
+			switch (event.type)
+			{
+			case sf::Event::Closed:
+				window.close();
+				flag = false;
+				break;
+			case sf::Event::MouseButtonPressed:
+				if (event.mouseButton.button == sf::Mouse::Left)
+					if (event.mouseButton.x >= (WIN_WIDTH / 30 * 29) and event.mouseButton.y <= WIN_HEIGHT / 30)
+						flag = false;
+				break;
+			}
+
+		}
+		if (flag)
+		{
+			window.clear(sf::Color::Black);
+			window.draw(back);
+			window.draw(exit);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 15));
+			text.setString("Type:");
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 5, WIN_HEIGHT / 15));
+			text.setString(type);
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 15 * 2));
+			text.setString("Job:");
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 5, WIN_HEIGHT / 15 * 2));
+			text.setString(task_type);
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 15 * 3));
+			text.setString("Heal points:");
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 5, WIN_HEIGHT / 15 * 3));
+			text.setString(std::to_string(heal_points));
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 15 * 4));
+			text.setString("Hunger points:");
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 5, WIN_HEIGHT / 15 * 4));
+			text.setString(std::to_string(hunger_points));
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 15 * 5));
+			text.setString("Damage:");
+			window.draw(text);
+
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 5, WIN_HEIGHT / 15 * 5));
+			text.setString(std::to_string(damage));
+			window.draw(text);
+
+			for (int i = 0; i < INVENTORY_SIZE; i++)
+			{
+				text.setPosition(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 15 * (6 + i)));
+				text.setString("Slot number " + std::to_string(i + 1) + ":");
+				window.draw(text);
+
+				text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 5, WIN_HEIGHT / 15 * (6 + i)));
+				if (inventory[i] != nullptr)
+					text.setString(inventory[i]->Get_Type() + " count: " + std::to_string(inventory[i]->Get_Count()));
+				else
+					text.setString("empty");
+				window.draw(text);
+			}
+
+
+
+			window.draw(image);
+			window.display();
+		}
+	}
 }
 
 

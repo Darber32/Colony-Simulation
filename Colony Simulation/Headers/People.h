@@ -19,6 +19,7 @@ private:
 	Interactable_Object * target;
 	sf::Vector2u target_pos;
 	void Move();
+	void Walk();
 	void Find_Nearest_Object(std::string type);
 	void Find_Place_For_Building(std::string type);
 	void Change_Texture(int type);
@@ -26,7 +27,6 @@ private:
 	bool Chech_Place(int i, int j);
 	void Way_For_Building(int map[MAP_HEIGHT][MAP_WIDTH]);
 	void Way_For_Object(int map[MAP_HEIGHT][MAP_WIDTH]);
-
 public:
 	void Find_Shortest_Way();
 	People(sf::Vector2f pos, std::string type);
@@ -37,7 +37,6 @@ public:
 	Inventory_Object* Get_Inventory(int index);
 	void Set_Inventory(int index, Inventory_Object* slot);
 	void Reset_Target();
-	void Reset_Sleep();
 	void Attack();
 	void Take_Damage(int damage);
 	void Enter_In_Building();
@@ -47,5 +46,7 @@ public:
 	void Heal(int heal);
 	void Set_Target_Position(sf::Vector2u pos);
 	std::map<std::string, int> Get_Priority();
+	void Show();
+	void Reset_Sleep();
 };
 

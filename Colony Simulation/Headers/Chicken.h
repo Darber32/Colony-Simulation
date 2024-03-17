@@ -13,5 +13,6 @@ public:
     Chicken(sf::Vector2f pos);
     ~Chicken();
     void Update();
+    void Show();
 };
 

@@ -9,6 +9,7 @@ protected:
 	std::string type;
 	sf::RectangleShape model;
 	sf::Texture texture;
+	sf::IntRect text_pos;
 	bool was_update;
 public:
 	Object();
@@ -19,5 +20,6 @@ public:
 	void Reset_Update();
 	sf::Vector2u Get_Index();
 	virtual void Update() = 0;
+	virtual void Show() = 0;
 };
 

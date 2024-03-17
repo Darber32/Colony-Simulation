@@ -13,5 +13,6 @@ public:
     Boar(sf::Vector2f pos);
     ~Boar();
     void Update();
+    void Show();
 };
 

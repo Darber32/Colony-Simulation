@@ -229,14 +229,13 @@ void Game::Draw()
 		for (int j = 0; j < MAP_WIDTH; j++)
 			if (objects_arr[i][j] != nullptr)
 				objects_arr[i][j]->Draw();
-	window.display();
 }
 
 void Game::Start()
 {
 	
 	sf::Clock clock;
-	float needed_time = 100, cur_time = 0;
+	float needed_time = 500, cur_time = 0;
 	while (window.isOpen())
 	{
 		float dt = clock.getElapsedTime().asMilliseconds();
@@ -244,8 +243,43 @@ void Game::Start()
 		cur_time += dt;
 		while (window.pollEvent(event))
 		{
-			if (event.type == sf::Event::Closed)
+			switch (event.type)
+			{
+			case sf::Event::Closed:
 				window.close();
+				break;
+			case sf::Event::KeyPressed:
+				switch (event.key.scancode)
+				{
+				case sf::Keyboard::Scan::Down:
+					if (needed_time < 2000)
+						needed_time += 100;
+					break;
+				case sf::Keyboard::Scan::Up:
+					if (needed_time > 100)
+						needed_time -= 100;
+					break;
+				}
+				break;
+			case sf::Event::KeyReleased:
+				switch (event.key.scancode)
+				{
+				case sf::Keyboard::Scan::Escape:
+					Pause();
+					clock.restart();
+					break;
+				}
+			case sf::Event::MouseButtonPressed:
+				if (event.mouseButton.button == sf::Mouse::Left)
+				{
+					int i = event.mouseButton.y / (WIN_HEIGHT / MAP_HEIGHT), j = event.mouseButton.x / (WIN_WIDTH / MAP_WIDTH);
+					if (objects_arr[i][j] != nullptr)
+					{
+						objects_arr[i][j]->Show();
+						clock.restart();
+					}
+				}
+			}
 		}
 		if (cur_time >= needed_time)
 		{
@@ -254,6 +288,7 @@ void Game::Start()
 			Update();
 		}
 		Draw();
+		window.display();
 	}
 }
 
@@ -287,8 +322,11 @@ void Game::Update()
 					}
 			break;
 		case Types::empty_slot:
-			m->empty_slot.people->Set_Inventory(m->empty_slot.index, nullptr);
-			delete m->empty_slot.slot;
+			if (m->empty_slot.slot != nullptr)
+			{
+				m->empty_slot.people->Set_Inventory(m->empty_slot.index, nullptr);
+				delete m->empty_slot.slot;
+			}
 			break;
 		case Types::move:
 			if (m->move.target != nullptr)
@@ -312,9 +350,50 @@ void Game::Update()
 	}
 }
 
+void Game::Pause()
+{
+	bool flag = true;
+	sf::Font font;
+	font.loadFromFile("consolai.ttf");
+	sf::Text text;
+	text.setFont(font);
+	text.setCharacterSize(80);
+	text.setFillColor(sf::Color::White);
+	while (flag)
+	{
+		while (window.pollEvent(event))
+		{
+			switch (event.type)
+			{
+			case sf::Event::Closed:
+				window.close();
+				flag = false;
+				break;
+			case sf::Event::KeyReleased:
+				switch (event.key.scancode)
+				{
+				case sf::Keyboard::Scan::Escape:
+					flag = false;
+					break;
+				}
+				break;
+			}
+		}
+		if (flag)
+		{
+			Draw();
+			text.setPosition(sf::Vector2f(WIN_WIDTH / 2 - text.getCharacterSize() / 2 * 2.5, WIN_HEIGHT / 2 - text.getCharacterSize()));
+			text.setString("Pause");
+			window.draw(text);
+			window.display();
+		}
+	}
+}
+
 void Game::Send_Message(Messenger* m)
 {
 	messages.push_back(m);
 }
+
 
 

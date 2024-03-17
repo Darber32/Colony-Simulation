@@ -27,6 +27,7 @@ private:
 	void Fill_Map();
 	void Draw();
 	void Update();
+	void Pause();
 public:
 	void Create_Object(std::string type);
 	static Game* Get_Instance();

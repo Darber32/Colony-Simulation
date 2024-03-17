@@ -11,5 +11,6 @@ public:
 	~Scaffolding();
 	void Interact();
 	void Update();
+	void Show();
 };
 

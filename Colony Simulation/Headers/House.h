@@ -8,5 +8,6 @@ private:
 	void Interact();
 public:
 	House(sf::Vector2f pos);
+	void Show();
 };
 

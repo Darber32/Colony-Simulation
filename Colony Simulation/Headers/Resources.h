@@ -10,5 +10,6 @@ public:
 	~Resources();
 	void Update();
 	int Get_Resources();
+	void Show();
 };
 

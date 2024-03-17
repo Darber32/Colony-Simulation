@@ -1,5 +1,6 @@
 #include "Headers/Village.h"
 #include "Headers/Main.h"
+#include "Headers/Messenger.h"
 #include <map>
 
 Village* Village::instance = nullptr;
@@ -27,6 +28,69 @@ Village::Village()
 
 Village::~Village()
 {
+}
+
+void Village::Remove_Materials(int count, std::string type)
+{
+	for (auto s : storage_arr)
+	{
+		for (int i = 0; i < STORAGE_SIZE; i++)
+			if (s->Get_Storage(i) != nullptr and s->Get_Storage(i)->Get_Type() == type)
+			{
+				if (s->Get_Storage(i)->Get_Count() >= count)
+				{
+					s->Get_Storage(i)->Change_Count(-count);
+					Change_Count(-count, type);
+					if (s->Get_Storage(i)->Get_Count() == 0)
+					{
+						s->Reset_Storage(i);
+					}
+					count = 0;
+				}
+				else
+				{
+					Change_Count(-s->Get_Storage(i)->Get_Count(), type);
+					count = s->Get_Storage(i)->Change_Count(-s->Get_Storage(i)->Get_Count());
+					s->Reset_Storage(i);
+				}
+			}
+	}
+	if (count > 0)
+	{
+		for (auto p : people_arr)
+		{
+			for (int i = 0; i < INVENTORY_SIZE; i++)
+				if (p->Get_Inventory(i) != nullptr and p->Get_Inventory(i)->Get_Type() == type)
+				{
+					if (p->Get_Inventory(i)->Get_Count() >= count)
+					{
+						p->Get_Inventory(i)->Change_Count(-count);
+						Change_Count(-count, type);
+						count = 0;
+						if (p->Get_Inventory(i)->Get_Count() == 0)
+						{
+							Messenger* message = new Messenger;
+							message->type = Types::empty_slot;
+							message->empty_slot.index = i;
+							message->empty_slot.people = p;
+							message->empty_slot.slot = p->Get_Inventory(i);
+							Game::Get_Instance()->Send_Message(message);
+						}
+					}
+					else
+					{
+						Change_Count(-p->Get_Inventory(i)->Get_Count(), type);
+						count = p->Get_Inventory(i)->Change_Count(-p->Get_Inventory(i)->Get_Count());
+						Messenger* message = new Messenger;
+						message->type = Types::empty_slot;
+						message->empty_slot.index = i;
+						message->empty_slot.people = p;
+						message->empty_slot.slot = p->Get_Inventory(i);
+						Game::Get_Instance()->Send_Message(message);
+					}
+				}
+		}
+	}
 }
 
 Village* Village::Get_Instance()
@@ -122,6 +186,23 @@ void Village::New_People()
 		counter = 0;
 }
 
+void Village::Add_People(People* people)
+{
+	people_arr.push_back(people);
+}
+
+void Village::Delete_People(People* people)
+{
+	for (std::vector<People*>::iterator i = people_arr.begin(); i != people_arr.end(); i++)
+	{
+		if (*i == people)
+		{
+			people_arr.erase(i);
+			break;
+		}
+	}
+}
+
 std::string Village::Find_Task(People* people)
 {
 	int max = INT_MIN;
@@ -183,6 +264,29 @@ std::string Village::Find_Task(People* people)
 		coef.erase(i);
 	}
 	return task;
+}
+
+void Village::Add_Storage(Storage* storage)
+{
+	storage_arr.push_back(storage);
+}
+
+void Village::Delete_Storage(Storage* storage)
+{
+	for (std::vector<Storage*>::iterator i = storage_arr.begin(); i != storage_arr.end(); i++)
+	{
+		if (*i == storage)
+		{
+			storage_arr.erase(i);
+			break;
+		}
+	}
+}
+
+void Village::Remove_Materials(std::pair<int, int> resources)
+{
+	Remove_Materials(resources.first, "tree");
+	Remove_Materials(resources.second, "rock");
 }
 
 bool Village::Can_Build(std::string type)
