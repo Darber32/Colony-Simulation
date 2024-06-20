@@ -8,6 +8,7 @@ protected:
 	virtual void Interact() = 0;
 public:
 	Interactable_Object();
+	~Interactable_Object();
 	void Set_Target_People(People* unit);
 	Object* Get_Target_People();
 };

@@ -3,20 +3,17 @@
 #include "Headers/Main.h"
 #include "Headers/Village.h"
 
-Resources::Resources(sf::Vector2f pos, std::string type)
+Resources::Resources(sf::Vector2f pos, std::string type, sf::Texture* tex)
 {
-	std::string filename;
-	if (type == "tree")
-		filename = "Images/Resources/Trees.png";
-	else if (type == "rock")
-		filename = "Images/Resources/Rocks.png";
+	is_interactable = true;
+	is_alive = false;
 	this->type = type;
 	count_of_resources = rand() % 41 + 10;
-	texture.loadFromFile(filename);
-	sf::Vector2u vector = texture.getSize();
+	texture = tex;
+	sf::Vector2u vector = texture->getSize();
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f(WIN_WIDTH / MAP_WIDTH, WIN_HEIGHT / MAP_HEIGHT));
-	model.setTexture(&texture);
+	model.setTexture(texture);
 	if (type == "tree")
 	{
 		text_pos.left = vector.x / 4 * (rand() % 3 + 1);
@@ -39,6 +36,9 @@ Resources::Resources(sf::Vector2f pos, std::string type)
 
 Resources::~Resources()
 {
+	if (who_target != nullptr and who_target->Get_Target() == this)
+		who_target->Reset_Target();
+
 }
 
 void Resources::Interact()
@@ -71,6 +71,7 @@ void Resources::Interact()
 				}
 			}
 		who_target->Reset_Target();
+		who_target = nullptr;
 		Messenger* message = new Messenger;
 		message->type = Types::death;
 		message->death.dying = this;
@@ -117,7 +118,7 @@ void Resources::Show()
 
 	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
 	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 4));
-	image.setTexture(&texture);
+	image.setTexture(texture);
 	image.setTextureRect(text_pos);
 
 	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));

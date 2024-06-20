@@ -14,6 +14,7 @@ class Game
 {
 private:
 	std::list<Messenger*> messages;
+	std::map<std::string, sf::Texture> textures;
 	sf::Event event;
 	Object* objects_arr[MAP_WIDTH][MAP_HEIGHT];
 	sf::RectangleShape ground_arr[MAP_WIDTH][MAP_HEIGHT];
@@ -36,5 +37,7 @@ public:
 	void Set_Object(int i, int j, Object * object);
 	void Start();
 	void Send_Message(Messenger* m);
+	std::list<Messenger*> Get_Messages();
+	sf::Texture* Get_Texture(std::string type);
 };
 

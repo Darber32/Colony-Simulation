@@ -2,17 +2,18 @@
 #include "Headers/Main.h"
 #include "Headers/Messenger.h"
 
-Boar::Boar(sf::Vector2f pos)
+Boar::Boar(sf::Vector2f pos, sf::Texture* tex)
 {
 	meat_count = rand() % 41 + 20;
 	type = "boar";
 	hp = 10;
 	damage = 1;
-	texture.loadFromFile("Images/Animals/Boar.png");
-	sf::Vector2u vector = texture.getSize();
+	was_attacked = false;
+	texture = tex;
+	sf::Vector2u vector = texture->getSize();
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f(WIN_WIDTH / MAP_WIDTH, WIN_HEIGHT / MAP_HEIGHT));
-	model.setTexture(&texture);
+	model.setTexture(texture);
 	text_pos.left = 0;
 	text_pos.top = 0;
 	text_pos.width = vector.x / 4;
@@ -70,11 +71,14 @@ void Boar::Move()
 
 void Boar::Attack()
 {
-	Messenger* message = new Messenger;
-	message->type = Types::attack_people;
-	message->attack_people.target = who_target;
-	message->attack_people.damage = damage;
-	Game::Get_Instance()->Send_Message(message);
+	if (hp > 0)
+	{
+		Messenger* message = new Messenger;
+		message->type = Types::attack_people;
+		message->attack_people.target = who_target;
+		message->attack_people.damage = damage;
+		Game::Get_Instance()->Send_Message(message);
+	}
 }
 
 void Boar::Update()
@@ -83,24 +87,29 @@ void Boar::Update()
 	{
 		if (hp > 0)
 		{
-			if ( who_target != nullptr and who_target->Get_Heal_Points() <= 0)
-				who_target = nullptr;
-			if (who_target != nullptr)
+			if (not was_attacked)
 			{
-				int x = Get_Index().x, y = Get_Index().y;
-				for (int i = y - 1; i <= y + 1; i++)
-					for (int j = x - 1; j <= x + 1; j++)
-					{
-						if (i > 0 and i <= MAP_HEIGHT - 1 and j > 0 and j <= MAP_WIDTH - 1)
+				if (who_target != nullptr and who_target->Get_Heal_Points() <= 0)
+					who_target = nullptr;
+				if (who_target != nullptr)
+				{
+					int x = Get_Index().x, y = Get_Index().y;
+					for (int i = y - 1; i <= y + 1; i++)
+						for (int j = x - 1; j <= x + 1; j++)
 						{
-							Object* object = Game::Get_Instance()->Get_Object(i, j);
-							if (object != nullptr and object == who_target)
-								Interact();
+							if (i > 0 and i <= MAP_HEIGHT - 1 and j > 0 and j <= MAP_WIDTH - 1)
+							{
+								Object* object = Game::Get_Instance()->Get_Object(i, j);
+								if (object != nullptr and object == who_target)
+									Interact();
+							}
 						}
-					}
+				}
+				if (not was_update)
+					Move();
 			}
-			if (not was_update)
-				Move();
+			else
+				was_attacked = false;
 		}
 		else
 			Death();
@@ -123,7 +132,7 @@ void Boar::Show()
 
 	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
 	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 5));
-	image.setTexture(&texture);
+	image.setTexture(texture);
 	image.setTextureRect(text_pos);
 
 	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
@@ -198,6 +207,16 @@ void Boar::Show()
 	}
 }
 
+int Boar::Interact_With_Dragon(Dragon* dragon, int damage)
+{
+	hp -= damage;
+	if (hp <= 0)
+		is_alive = false;
+	was_update = true;
+	was_attacked = true;
+	return this->damage;
+}
+
 void Boar::Interact()
 {
 	who_target->Attack();
@@ -207,7 +226,7 @@ void Boar::Interact()
 
 void Boar::Change_Texture(int type)
 {
-	sf::Vector2u vector = texture.getSize();
+	sf::Vector2u vector = texture->getSize();
 	text_pos.left = 0;
 	text_pos.top = vector.y / 8 * type;
 	text_pos.width = vector.x / 4;

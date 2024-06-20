@@ -15,5 +15,6 @@ public:
 	bool Is_Anybody_Inside();
 	void Update();
 	std::pair <int, int> Get_Cost();
+	int Interact_With_Dragon(Dragon* dragon, int damage) { return 0; }
 };
 

@@ -10,9 +10,10 @@ private:
     void Interact();
     void Change_Texture(int type);
 public:
-    Chicken(sf::Vector2f pos);
+    Chicken(sf::Vector2f pos, sf::Texture* tex);
     ~Chicken();
     void Update();
     void Show();
+    int Interact_With_Dragon(Dragon* dragon, int damage);
 };
 

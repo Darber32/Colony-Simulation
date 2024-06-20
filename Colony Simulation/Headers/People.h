@@ -29,15 +29,18 @@ private:
 	void Way_For_Object(int map[MAP_HEIGHT][MAP_WIDTH]);
 public:
 	void Find_Shortest_Way();
-	People(sf::Vector2f pos, std::string type);
+	People(sf::Vector2f pos, std::string type, sf::Texture* tex);
 	~People();
 	void Update();
 	void Was_Update();
 	Object* Get_Target();
 	Inventory_Object* Get_Inventory(int index);
 	void Set_Inventory(int index, Inventory_Object* slot);
+	void Set_Target(Interactable_Object* new_target);
 	void Reset_Target();
 	void Attack();
+	void Attack_Enemy();
+	void Attack_Thief();
 	void Take_Damage(int damage);
 	void Enter_In_Building();
 	void Exit_The_Building(sf::Vector2u index);
@@ -48,5 +51,7 @@ public:
 	std::map<std::string, int> Get_Priority();
 	void Show();
 	void Reset_Sleep();
+	bool In_Building();
+	int Interact_With_Dragon(Dragon* dragon, int damage);
 };
 

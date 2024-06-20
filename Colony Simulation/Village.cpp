@@ -23,6 +23,10 @@ Village::Village()
 	res_count["kitchen"] = 0;
 	res_max["kitchen"] = 0;
 	counter = 0;
+	enemy_counter = 0;
+	enemy_spawn_counter = 0;
+	thief_counter = 0;
+	thief_spawn_counter = 0;
 	timer = 0;
 }
 
@@ -69,24 +73,28 @@ void Village::Remove_Materials(int count, std::string type)
 						count = 0;
 						if (p->Get_Inventory(i)->Get_Count() == 0)
 						{
-							Messenger* message = new Messenger;
+							delete p->Get_Inventory(i);
+							p->Set_Inventory(i, nullptr);
+							/*Messenger* message = new Messenger;
 							message->type = Types::empty_slot;
 							message->empty_slot.index = i;
 							message->empty_slot.people = p;
 							message->empty_slot.slot = p->Get_Inventory(i);
-							Game::Get_Instance()->Send_Message(message);
+							Game::Get_Instance()->Send_Message(message);*/
 						}
 					}
 					else
 					{
 						Change_Count(-p->Get_Inventory(i)->Get_Count(), type);
 						count = p->Get_Inventory(i)->Change_Count(-p->Get_Inventory(i)->Get_Count());
-						Messenger* message = new Messenger;
+						delete p->Get_Inventory(i);
+						p->Set_Inventory(i, nullptr);
+						/*Messenger* message = new Messenger;
 						message->type = Types::empty_slot;
 						message->empty_slot.index = i;
 						message->empty_slot.people = p;
 						message->empty_slot.slot = p->Get_Inventory(i);
-						Game::Get_Instance()->Send_Message(message);
+						Game::Get_Instance()->Send_Message(message);*/
 					}
 				}
 		}
@@ -160,7 +168,7 @@ void Village::New_People()
 			counter = 0;
 			Change_Count(1, "people");
 			std::string filename, type;
-			int t = rand() % 4;
+			int t = rand() % 5;
 			switch (t)
 			{
 			case 0:
@@ -178,6 +186,9 @@ void Village::New_People()
 			case 3:
 				type = "builder";
 				filename = "Images/People/Purple_people.png";
+				break;
+			case 4:
+				type = "defender";
 			}
 			Game::Get_Instance()->Create_Object(type);
 		}
@@ -224,16 +235,14 @@ std::string Village::Find_Task(People* people)
 		coef["rock"] = priority["miner"];
 	coef["rock"]++;
 
-	int x = rand() % 2;
-	switch (x)
-	{
-	case 0:
-		meat_type = "boar";
-		break;
-	case 1:
+	int x = rand() % 6;
+	if (x < 3)
 		meat_type = "chicken";
-		break;
-	}
+	else if (x < 5)
+		meat_type = "boar";
+	else
+		meat_type = "dragon";
+
 	if (res_count["raw meat"] < res_max["raw meat"])
 		coef[meat_type] = (res_max["raw meat"] - res_count["raw meat"]) * priority["hunter"];
 	else
@@ -252,6 +261,12 @@ std::string Village::Find_Task(People* people)
 
 	if (res_count["kitchen"] < res_max["kitchen"] and res_count["tree"] >= res_max["tree"] and res_count["rock"] >= res_max["rock"])
 		coef["build kitchen"] = priority["builder"] * 20;
+
+	if (enemy_counter > 0)
+		coef["enemy"] = enemy_counter * priority["defender"] * 10;
+
+	else if (thief_counter > 0)
+		coef["thief"] = thief_counter * priority["defender"] * 10;
 
 	while (not coef.empty())
 	{
@@ -293,3 +308,87 @@ bool Village::Can_Build(std::string type)
 {
 	return res_count[type] < res_max[type] and res_count["tree"] >= res_max["tree"] and res_count["rock"] >= res_max["rock"];
 }
+
+void Village::Spawn_Enemy()
+{
+	enemy_spawn_counter++;
+	if (enemy_spawn_counter >= 50)
+	{
+		enemy_spawn_counter = 0;
+		sf::Vector2f pos;
+		Enemy* enemy;
+		if (rand() % 4 == 0)
+		{
+			int enemy_count = rand() % res_count["people"] + 1, x, y;
+			enemy_counter += enemy_count;
+			for (int i = 0; i < enemy_count; i++)
+			{
+				do
+				{
+					switch (rand() % 4)
+					{
+					case 0:
+						x = rand() % (MAP_WIDTH - 2) + 1;
+						y = 1;
+						break;
+					case 1:
+						x = rand() % (MAP_WIDTH - 2) + 1;
+						y = MAP_HEIGHT - 2;
+						break;
+					case 2:
+						x = MAP_WIDTH - 2;
+						y = rand() % (MAP_HEIGHT - 2) + 1;
+						break;
+					case 3:
+						x = 1;
+						y = rand() % (MAP_HEIGHT - 2) + 1;
+						break;
+					}
+				} while (Game::Get_Instance()->Get_Object(y, x) != nullptr);
+				pos.x = x * WIN_WIDTH / MAP_WIDTH;
+				pos.y = y * WIN_HEIGHT / MAP_HEIGHT;
+				enemy = new Enemy(pos, Game::Get_Instance()->Get_Texture("enemy"));
+				Game::Get_Instance()->Set_Object(y, x, enemy);
+			}
+		}
+	}
+}
+
+void Village::Spawn_Thief()
+{
+	if (not storage_arr.empty())
+	{
+		thief_spawn_counter++;
+		if (thief_spawn_counter >= 50)
+		{
+			thief_counter++;
+			thief_spawn_counter = 0;
+			sf::Vector2f pos;
+			Thief* thief;
+			if (rand() % 4 == 0)
+			{
+				int x, y = MAP_HEIGHT - 2;
+				do
+				{
+					x = rand() % (MAP_WIDTH - 2) + 1;;
+				} while (Game::Get_Instance()->Get_Object(y, x) != nullptr and Game::Get_Instance()->Get_Object(y + 1, x) != nullptr);
+				pos.x = x * WIN_WIDTH / MAP_WIDTH;
+				pos.y = y * WIN_HEIGHT / MAP_HEIGHT;
+				thief = new Thief(pos, Game::Get_Instance()->Get_Texture("thief"));
+				Game::Get_Instance()->Set_Object(y, x, thief);
+			}
+		}
+	}
+}
+
+void Village::Enemy_Died()
+{
+	enemy_counter--;
+}
+
+void Village::Thief_Died()
+{
+	thief_counter--;
+}
+
+

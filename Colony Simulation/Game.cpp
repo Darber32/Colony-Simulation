@@ -9,6 +9,9 @@
 #include "Headers/Storage.h"
 #include "Headers/Kitchen.h"
 #include "Headers/Village.h"
+#include "Headers/Enemy.h"
+#include "Headers/Thief.h"
+#include "Headers/Dragon.h"
 #include <fstream>
 #include <iostream>
 
@@ -20,6 +23,58 @@ Game::Game()
 	for (int i = 0; i < MAP_HEIGHT; i++)
 		for (int j = 0; j < MAP_WIDTH; j++)
 			objects_arr[i][j] = nullptr;
+	sf::Texture texture;
+	texture.loadFromFile("Images/People/Green_people.png");
+	textures["woodcutter"] = texture;
+
+	texture.loadFromFile("Images/People/Blue_people.png");
+	textures["miner"] = texture;
+
+	texture.loadFromFile("Images/People/Red_people.png");
+	textures["hunter"] = texture;
+
+	texture.loadFromFile("Images/People/Purple_people.png");
+	textures["builder"] = texture;
+
+	texture.loadFromFile("Images/People/White_people.png");
+	textures["defender"] = texture;
+
+	texture.loadFromFile("Images/Animals/Boar.png");
+	textures["boar"] = texture;
+
+	texture.loadFromFile("Images/Animals/Chicken.png");
+	textures["chicken"] = texture;
+
+	texture.loadFromFile("Images/Monsters/Pirates/PirateGrunt.png");
+	textures["enemy"] = texture;
+
+	texture.loadFromFile("Images/Buildings/Wood/Houses.png");
+	textures["house"] = texture;
+
+	texture.loadFromFile("Images/Buildings/Wood/Market.png");
+	textures["kitchen"] = texture;
+
+	texture.loadFromFile("Images/Resources/Trees.png");
+	textures["tree"] = texture;
+
+	texture.loadFromFile("Images/Resources/Rocks.png");
+	textures["rock"] = texture;
+
+	texture.loadFromFile("Images/Place_for_building.png");
+	textures["scaffolding"] = texture;
+
+	texture.loadFromFile("Images/Buildings/Wood/Barracks.png");
+	textures["storage"] = texture;
+
+	texture.loadFromFile("Images/Ship.png");
+	textures["ship"] = texture;
+
+	texture.loadFromFile("Images/Thief.png");
+	textures["thief"] = texture;
+
+	texture.loadFromFile("Images/Monsters/Dragons/BlackDragon.png");
+	textures["dragon"] = texture;
+
 	Create_Map();
 	Fill_Map();
 }
@@ -29,7 +84,10 @@ Game::~Game()
 	for (int i = 0; i < MAP_HEIGHT; i++)
 		for (int j = 0; j < MAP_WIDTH; j++)
 			if (objects_arr[i][j] != nullptr)
+			{
 				delete objects_arr[i][j];
+				objects_arr[i][j] = nullptr;
+			}
 	Village::Destroy_Instance();
 }
 
@@ -146,14 +204,16 @@ void Game::Create_Object(std::string type)
 	} while (objects_arr[y][x] != nullptr);
 	pos.x = x * WIN_WIDTH / MAP_WIDTH;
 	pos.y = y * WIN_HEIGHT / MAP_HEIGHT;
-	if (type == "woodcutter" or type == "miner" or type == "hunter" or type == "builder")
-		objects_arr[y][x] = new People(pos, type);
+	if (type == "woodcutter" or type == "miner" or type == "hunter" or type == "builder" or type == "defender")
+		objects_arr[y][x] = new People(pos, type, &textures[type]);
 	else if (type == "tree" or type == "rock")
-		objects_arr[y][x] = new Resources(pos, type);
+		objects_arr[y][x] = new Resources(pos, type, &textures[type]);
 	else if (type == "boar")
-		objects_arr[y][x] = new Boar(pos);
+		objects_arr[y][x] = new Boar(pos, &textures[type]);
 	else if (type == "chicken")
-		objects_arr[y][x] = new Chicken(pos);
+		objects_arr[y][x] = new Chicken(pos, &textures[type]);
+	else if (type == "dragon")
+		objects_arr[y][x] = new Dragon(pos, &textures[type]);
 }
 
 void Game::Create_New_Object()
@@ -163,7 +223,7 @@ void Game::Create_New_Object()
 	if (c == 10)
 	{
 		c = 0;
-		int r = rand() % 4;
+		int r = rand() % 5;
 		switch (r)
 		{
 		case 0:
@@ -178,6 +238,8 @@ void Game::Create_New_Object()
 		case 3:
 			Create_Object("chicken");
 			break;
+		case 4:
+			Create_Object("dragon");
 		}
 	}
 }
@@ -185,7 +247,7 @@ void Game::Create_New_Object()
 void Game::Fill_Map()
 {
 	sf::Vector2f pos;
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 5; i++)
 	{
 		switch (i)
 		{
@@ -200,6 +262,9 @@ void Game::Fill_Map()
 			break;
 		case 3:
 			Create_Object("builder");
+			break;
+		case 4:
+			Create_Object("defender");
 			break;
 		}
 		Village::Get_Instance()->Change_Count(1, "people");
@@ -217,6 +282,9 @@ void Game::Fill_Map()
 	count = rand() % 3 + 3;
 	for (int i = 0; i < count; i++)
 		Create_Object("chicken");
+	count = rand() % 3 + 1;
+	for (int i = 0; i < count; i++)
+		Create_Object("dragon");
 }
 
 void Game::Draw()
@@ -294,8 +362,10 @@ void Game::Start()
 
 void Game::Update()
 {
-	Village::Get_Instance()->Show_Stat();
+	//Village::Get_Instance()->Show_Stat();
 	Village::Get_Instance()->New_People();
+	Village::Get_Instance()->Spawn_Enemy();
+	Village::Get_Instance()->Spawn_Thief();
 	Create_New_Object();
 	for (int i = 0; i < MAP_HEIGHT; i++)
 		for (int j = 0; j < MAP_WIDTH; j++)
@@ -315,30 +385,28 @@ void Game::Update()
 		case Types::death:
 			for (int i = 0; i < MAP_HEIGHT; i++)
 				for (int j = 0; j < MAP_WIDTH; j++)
-					if (objects_arr[i][j] == m->death.dying)
+					if (m->death.dying != nullptr and objects_arr[i][j] == m->death.dying)
 					{
-						delete objects_arr[i][j];
+						delete m->death.dying;
 						objects_arr[i][j] = nullptr;
 					}
-			break;
-		case Types::empty_slot:
-			if (m->empty_slot.slot != nullptr)
-			{
-				m->empty_slot.people->Set_Inventory(m->empty_slot.index, nullptr);
-				delete m->empty_slot.slot;
-			}
-			break;
-		case Types::move:
-			if (m->move.target != nullptr)
-			{
-				m->move.target->Set_Target_Position(m->move.pos);
-				m->move.target->Find_Shortest_Way();
-			}
 			break;
 		case Types::attack_animal:
 			if (m->attack_animal.target != nullptr)
 			{
 				m->attack_animal.target->Take_Damage(m->attack_animal.damage);
+			}
+			break;
+		case Types::attack_enemy:
+			if (m->attack_enemy.target != nullptr)
+			{
+				m->attack_enemy.target->Take_Damage(m->attack_enemy.damage);
+			}
+			break;
+		case Types::attack_thief:
+			if (m->attack_thief.target != nullptr)
+			{
+				m->attack_thief.target->Take_Damage(m->attack_thief.damage);
 			}
 			break;
 		case Types::attack_people:
@@ -395,5 +463,13 @@ void Game::Send_Message(Messenger* m)
 	messages.push_back(m);
 }
 
+std::list<Messenger*> Game::Get_Messages()
+{
+	return messages;
+}
 
+sf::Texture* Game::Get_Texture(std::string type)
+{
+	return &textures[type];
+}
 

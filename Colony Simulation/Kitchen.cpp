@@ -3,17 +3,18 @@
 #include "Headers/Messenger.h"
 #include "Headers/Village.h"
 
-Kitchen::Kitchen(sf::Vector2f pos)
+Kitchen::Kitchen(sf::Vector2f pos, sf::Texture* tex)
 {
 	Village::Get_Instance()->Change_Count(1, "kitchen");
 	type = "kitchen";
 	cost = std::pair<int, int>(40, 20);
 	Village::Get_Instance()->Remove_Materials(cost);
-	texture.loadFromFile("Images/Buildings/Wood/Market.png");
-	sf::Vector2u vector = texture.getSize();
+	//texture.loadFromFile("Images/Buildings/Wood/Market.png");
+	texture = tex;
+	sf::Vector2u vector = texture->getSize();
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f((WIN_WIDTH / MAP_WIDTH) * 2, (WIN_HEIGHT / MAP_HEIGHT) * 2));
-	model.setTexture(&texture);
+	model.setTexture(texture);
 	text_pos.left = vector.x / 3 * (rand() % 3);
 	text_pos.top = vector.y / 4 * (rand() % 4);
 	text_pos.width = vector.x / 3;
@@ -37,7 +38,7 @@ void Kitchen::Show()
 
 	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
 	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 4));
-	image.setTexture(&texture);
+	image.setTexture(texture);
 	image.setTextureRect(text_pos);
 
 	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
@@ -157,11 +158,13 @@ void Kitchen::Interact()
 	}
 	if (meat != nullptr and meat->Get_Count() == 0)
 	{
-		Messenger* message = new Messenger;
+		delete who_target->Get_Inventory(index);
+		who_target->Set_Inventory(index, nullptr);
+		/*Messenger* message = new Messenger;
 		message->type = Types::empty_slot;
 		message->empty_slot.index = index;
 		message->empty_slot.people = who_target;
 		message->empty_slot.slot = meat;
-		Game::Get_Instance()->Send_Message(message);
+		Game::Get_Instance()->Send_Message(message);*/
 	}
 }

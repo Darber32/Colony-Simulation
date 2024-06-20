@@ -23,6 +23,8 @@
     <ClCompile Include="Boar.cpp" />
     <ClCompile Include="Buildings.cpp" />
     <ClCompile Include="Chicken.cpp" />
+    <ClCompile Include="Dragon.cpp" />
+    <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="House.cpp" />
     <ClCompile Include="Interactable_Object.cpp" />
@@ -33,7 +35,9 @@
     <ClCompile Include="People.cpp" />
     <ClCompile Include="Resources.cpp" />
     <ClCompile Include="Scaffolding.cpp" />
+    <ClCompile Include="Ship.cpp" />
     <ClCompile Include="Storage.cpp" />
+    <ClCompile Include="Thief.cpp" />
     <ClCompile Include="Village.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -41,6 +45,8 @@
     <ClInclude Include="Headers\Boar.h" />
     <ClInclude Include="Headers\Buildings.h" />
     <ClInclude Include="Headers\Chicken.h" />
+    <ClInclude Include="Headers\Dragon.h" />
+    <ClInclude Include="Headers\Enemy.h" />
     <ClInclude Include="Headers\Game.h" />
     <ClInclude Include="Headers\House.h" />
     <ClInclude Include="Headers\Interactable_Object.h" />
@@ -52,7 +58,9 @@
     <ClInclude Include="Headers\People.h" />
     <ClInclude Include="Headers\Resources.h" />
     <ClInclude Include="Headers\Scaffolding.h" />
+    <ClInclude Include="Headers\Ship.h" />
     <ClInclude Include="Headers\Storage.h" />
+    <ClInclude Include="Headers\Thief.h" />
     <ClInclude Include="Headers\Village.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

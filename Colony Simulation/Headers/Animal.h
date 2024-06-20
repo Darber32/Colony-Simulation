@@ -8,6 +8,7 @@ protected:
 	virtual void Change_Texture(int type) = 0;
 	void Death();
 public:
+	Animal();
 	void Take_Damage(int damage);
 };
 

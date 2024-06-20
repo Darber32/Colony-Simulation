@@ -3,7 +3,7 @@
 #include "Headers/Messenger.h"
 #include "Headers/Village.h"
 
-Storage::Storage(sf::Vector2f pos)
+Storage::Storage(sf::Vector2f pos, sf::Texture* tex)
 {
 	Village::Get_Instance()->Change_Count(1, "storage");
 	type = "storage";
@@ -12,11 +12,11 @@ Storage::Storage(sf::Vector2f pos)
 	cost = std::pair<int, int>(20, 40);
 	Village::Get_Instance()->Remove_Materials(cost);
 	is_full = false;
-	texture.loadFromFile("Images/Buildings/Wood/Barracks.png");
-	sf::Vector2u vector = texture.getSize();
+	texture = tex;
+	sf::Vector2u vector = texture->getSize();
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f((WIN_WIDTH / MAP_WIDTH) * 2, (WIN_HEIGHT / MAP_HEIGHT) * 2));
-	model.setTexture(&texture);
+	model.setTexture(texture);
 	text_pos.left = vector.x / 4 * (rand() % 4);
 	text_pos.top = vector.y / 5 * (rand() % 2);
 	text_pos.width = vector.x / 4;
@@ -35,6 +35,8 @@ Storage::~Storage()
 		{
 			Village::Get_Instance()->Change_Count(-storage[i]->Get_Count(), storage[i]->Get_Type());
 			delete storage[i];
+			storage[i] = nullptr;
+
 		}
 }
 
@@ -45,10 +47,17 @@ Inventory_Object* Storage::Get_Storage(int index)
 	return storage[index];
 }
 
+void Storage::Set_Storage(int index, Inventory_Object* object)
+{
+	if (index < STORAGE_SIZE and storage[index] == nullptr)
+		storage[index] = object;
+}
+
 void Storage::Reset_Storage(int index)
 {
 	if (index < STORAGE_SIZE and storage[index] != nullptr)
 	{
+		//delete storage[index];
 		storage[index] = nullptr;
 		is_full = false;
 	}
@@ -70,7 +79,7 @@ void Storage::Show()
 
 	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
 	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 8 - WIN_HEIGHT / MAP_HEIGHT));
-	image.setTexture(&texture);
+	image.setTexture(texture);
 	image.setTextureRect(text_pos);
 
 	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
@@ -132,7 +141,7 @@ void Storage::Show()
 				text.setString("Slot number " + std::to_string(i + 1) + ":");
 				window.draw(text);
 
-				text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 5, WIN_HEIGHT / 15 * (3 + i)));
+				text.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4 + WIN_WIDTH / 18, WIN_HEIGHT / 15 * (3 + i)));
 				if (storage[i] != nullptr)
 					text.setString(storage[i]->Get_Type() + " count: " + std::to_string(storage[i]->Get_Count()));
 				else
@@ -165,19 +174,22 @@ void Storage::Interact()
 			{
 				for (int j = 0; j < STORAGE_SIZE; j++)
 				{
-					if (storage[j] != nullptr and target_slot->Get_Type() == storage[j]->Get_Type())
+					if (storage[j] != nullptr and target_slot != nullptr and target_slot->Get_Type() == storage[j]->Get_Type())
 					{
 						int storage_count = storage[j]->Get_Count(), people_count = target_slot->Get_Count(), storage_avalible = storage[j]->Get_Max_Count() - storage_count;
 						if (people_count <= storage_avalible)
 						{
 							storage[j]->Change_Count(people_count);
 							target_slot->Change_Count(-people_count);
-							Messenger* message = new Messenger;
+							delete who_target->Get_Inventory(i);
+							who_target->Set_Inventory(i, nullptr);
+							target_slot = nullptr;
+							/*Messenger* message = new Messenger;
 							message->type = Types::empty_slot;
 							message->empty_slot.index = i;
 							message->empty_slot.people = who_target;
 							message->empty_slot.slot = target_slot;
-							Game::Get_Instance()->Send_Message(message);
+							Game::Get_Instance()->Send_Message(message);*/
 						}
 						else
 						{

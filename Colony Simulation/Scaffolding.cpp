@@ -6,17 +6,19 @@
 #include "Headers/Kitchen.h"
 #include "Headers/Village.h"
 
-Scaffolding::Scaffolding(sf::Vector2f pos, std::string type)
+Scaffolding::Scaffolding(sf::Vector2f pos, std::string type, sf::Texture* tex)
 {
+	is_interactable = true;
+	is_alive = false;
 	building_time = 0;
 	max_time = 10;
 	this->type = "scaffolding";
 	building_type = type;
-	texture.loadFromFile("Images/Place_for_building.png");
-	sf::Vector2u vector = texture.getSize();
+	texture = tex;
+	sf::Vector2u vector = texture->getSize();
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f((WIN_WIDTH / MAP_WIDTH) * 2, (WIN_HEIGHT / MAP_HEIGHT) * 2));
-	model.setTexture(&texture);
+	model.setTexture(texture);
 	text_pos.left = 0;
 	text_pos.top = 0;
 	text_pos.width = vector.x / 2;
@@ -26,8 +28,10 @@ Scaffolding::Scaffolding(sf::Vector2f pos, std::string type)
 
 Scaffolding::~Scaffolding()
 {
+	if (who_target != nullptr and who_target->Get_Target() == this)
+		who_target->Reset_Target();
 	int y = Get_Index().y, x = Get_Index().x;
-	if (Game::Get_Instance()->Get_Object(y, x)->Get_Type() == "scaffolding")
+	if (Game::Get_Instance()->Get_Object(y, x) != nullptr and Game::Get_Instance()->Get_Object(y, x)->Get_Type() == "scaffolding")
 	{
 		Game::Get_Instance()->Set_Object(y + 1, x, nullptr);
 		Game::Get_Instance()->Set_Object(y, x + 1, nullptr);
@@ -52,21 +56,21 @@ void Scaffolding::Interact()
 		building_time++;
 		if (building_time >= max_time)
 		{
-			who_target->Reset_Target();
-			Messenger* message = new Messenger;
-			message->type = Types::death;
-			message->death.dying = this;
-			Game::Get_Instance()->Send_Message(message);
+			//who_target->Reset_Target();
+			//Messenger* message = new Messenger;
+			//message->type = Types::death;
+			//message->death.dying = this;
+			//Game::Get_Instance()->Send_Message(message);
 			Buildings* building;
 			int y = Get_Index().y, x = Get_Index().x;
 			if (building_type == "build house")
 			{
-				building = new House(Get_Pos());
+				building = new House(Get_Pos(), Game::Get_Instance()->Get_Texture("house"));
 			}
 			else if (building_type == "build storage")
-				building = new Storage(Get_Pos());
+				building = new Storage(Get_Pos(), Game::Get_Instance()->Get_Texture("storage"));
 			else
-				building = new Kitchen(Get_Pos());
+				building = new Kitchen(Get_Pos(), Game::Get_Instance()->Get_Texture("kitchen"));
 			Game::Get_Instance()->Set_Object(y, x, building);
 			Game::Get_Instance()->Set_Object(y + 1, x, building);
 			Game::Get_Instance()->Set_Object(y, x + 1, building);
@@ -101,7 +105,8 @@ void Scaffolding::Update()
 	}
 	else
 	{
-		who_target->Reset_Target();
+		if (who_target != nullptr)
+			who_target->Reset_Target();
 		Messenger* message = new Messenger;
 		message->type = Types::death;
 		message->death.dying = this;
@@ -125,7 +130,7 @@ void Scaffolding::Show()
 
 	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
 	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 4));
-	image.setTexture(&texture);
+	image.setTexture(texture);
 	image.setTextureRect(text_pos);
 
 	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));

@@ -8,11 +8,13 @@
 #include "Headers/Storage.h"
 #include "Headers/Scaffolding.h"
 
-People::People(sf::Vector2f pos, std::string type)
+People::People(sf::Vector2f pos, std::string type, sf::Texture* tex)
 {
-	std::string filename;
 	target = nullptr;
 	this->type = "people";
+	heal_points = 20;
+	max_heal_point = 20;
+	damage = 1;
 	task_type = type;
 	if (task_type == "woodcutter")
 	{
@@ -20,7 +22,7 @@ People::People(sf::Vector2f pos, std::string type)
 		priority["miner"] = rand() % 3 + 1;
 		priority["hunter"] = rand() % 3 + 1;
 		priority["builder"] = 0;
-		filename = "Images/People/Green_people.png";
+		priority["defender"] = 0;
 	}
 	else if (task_type == "miner")
 	{
@@ -28,7 +30,7 @@ People::People(sf::Vector2f pos, std::string type)
 		priority["miner"] = 4;
 		priority["hunter"] = rand() % 3 + 1;
 		priority["builder"] = 0;
-		filename = "Images/People/Blue_people.png";
+		priority["defender"] = 0;
 	}
 	else if (task_type == "hunter")
 	{
@@ -36,7 +38,7 @@ People::People(sf::Vector2f pos, std::string type)
 		priority["miner"] = rand() % 3 + 1;
 		priority["hunter"] = 4;
 		priority["builder"] = 0;
-		filename = "Images/People/Red_people.png";
+		priority["defender"] = 0;
 	}
 	else if (task_type == "builder")
 	{
@@ -44,23 +46,33 @@ People::People(sf::Vector2f pos, std::string type)
 		priority["miner"] = rand() % 3 + 1;
 		priority["hunter"] = 0;
 		priority["builder"] = 4;
-		filename = "Images/People/Purple_people.png";
+		priority["defender"] = 0;
 	}
-	heal_points = 20;
-	max_heal_point = 20;
+	else if (task_type == "defender")
+	{
+		priority["woodcutter"] = 0;
+		priority["miner"] = 0;
+		priority["hunter"] = 3;
+		priority["builder"] = 0;
+		priority["defender"] = 5;
+		heal_points = 40;
+		max_heal_point = 40;
+		damage = 2;
+	}
 	max_hunger_points = 50;
 	hunger_points = max_hunger_points;
-	damage = 1;
 	max_sleep = 20;
 	sleep_count = max_sleep;
 	in_building = false;
+	is_alive = true;
+	is_interactable = false;
 	build_time = 0;
 	build_max = 10;
-	texture.loadFromFile(filename);
-	sf::Vector2u vector = texture.getSize();
+	texture = tex;
+	sf::Vector2u vector = texture->getSize();
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f(WIN_WIDTH / MAP_WIDTH, WIN_HEIGHT / MAP_HEIGHT));
-	model.setTexture(&texture);
+	model.setTexture(texture);
 	text_pos.left = 0;
 	text_pos.top = vector.y / 12;
 	text_pos.width = vector.x / 5;
@@ -73,15 +85,50 @@ People::People(sf::Vector2f pos, std::string type)
 
 People::~People()
 {
-	Village::Get_Instance()->Delete_People(this);
+	std::list<Messenger*> m = Game::Get_Instance()->Get_Messages();
+	std::list<Messenger*>::iterator i = m.begin();
+	for (std::list<Messenger*>::iterator i = m.begin(); i != m.end(); i++)
+	{
+		switch ((*i)->type)
+		{
+		case Types::death:
+			if ((*i)->death.dying->Get_Type() == "people" and dynamic_cast<People*>((*i)->death.dying) == this)
+			{
+				(*i)->death.dying = nullptr;
+			}
+			break;
+		case Types::attack_people:
+			if ((*i)->attack_people.target == this)
+			{
+				(*i)->attack_people.target = nullptr;
+			}
+			break;
+		}
+	}
 	if (target != nullptr)
+	{
 		target->Set_Target_People(nullptr);
+		target = nullptr;
+	}
+	for (int i = 0; i < MAP_HEIGHT; i++)
+		for (int j = 0; j < MAP_WIDTH; j++)
+		{
+			Object* object = Game::Get_Instance()->Get_Object(i, j);
+			if (object != nullptr and object->Is_Interactable())
+			{
+				Interactable_Object* interactable_object = dynamic_cast<Interactable_Object*>(object);
+				if (interactable_object->Get_Target_People() == this)
+					interactable_object->Set_Target_People(nullptr);
+			}
+		}
+	Village::Get_Instance()->Delete_People(this);
 	Village::Get_Instance()->Change_Count(-1, "people");
 	for (int i = 0; i < INVENTORY_SIZE; i++)
 		if (inventory[i] != nullptr)
 		{
 			Village::Get_Instance()->Change_Count(-inventory[i]->Get_Count(), inventory[i]->Get_Type());
 			delete inventory[i];
+			inventory[i] = nullptr;
 		}
 }
 
@@ -89,7 +136,7 @@ void People::Move()
 {
 	sf::Vector2u pos = Get_Index();
 	sf::Vector2u new_pos = way[way.size() - 1];
-	if (Game::Get_Instance()->Get_Object(new_pos.y, new_pos.x) != nullptr)
+	if (Game::Get_Instance()->Get_Object(new_pos.y, new_pos.x) != nullptr or Game::Get_Instance()->Get_Object(target_pos.y, target_pos.x) != target)
 	{
 		Find_Shortest_Way();
 		if (not way.empty())
@@ -124,23 +171,26 @@ void People::Walk()
 		int direction;
 		do
 		{
-			direction = rand() % 4;
-			switch (direction)
+			do
 			{
-			case 0:
-				new_pos = sf::Vector2u(pos.x, pos.y - 1);
-				break;
-			case 1:
-				new_pos = sf::Vector2u(pos.x, pos.y + 1);
-				break;
-			case 2:
-				new_pos = sf::Vector2u(pos.x - 1, pos.y);
-				break;
-			case 3:
+				direction = rand() % 4;
+				switch (direction)
+				{
+				case 0:
+					new_pos = sf::Vector2u(pos.x, pos.y - 1);
+					break;
+				case 1:
+					new_pos = sf::Vector2u(pos.x, pos.y + 1);
+					break;
+				case 2:
+					new_pos = sf::Vector2u(pos.x - 1, pos.y);
+					break;
+				case 3:
 
-				new_pos = sf::Vector2u(pos.x + 1, pos.y);
-				break;
-			}
+					new_pos = sf::Vector2u(pos.x + 1, pos.y);
+					break;
+				}
+			} while (new_pos.x < 1 or new_pos.x > MAP_WIDTH - 2 or new_pos.y < 1 or new_pos.y > MAP_HEIGHT - 2);
 		} while (Game::Get_Instance()->Get_Object(new_pos.y, new_pos.x) != nullptr);
 		Change_Texture(direction);
 		Game::Get_Instance()->Set_Object(new_pos.y, new_pos.x, this);
@@ -213,6 +263,7 @@ void People::Update()
 		}
 		else
 		{
+			is_alive = false;
 			Messenger* message = new Messenger;
 			message->type = Types::death;
 			message->death.dying = this;
@@ -244,7 +295,7 @@ void People::Find_Nearest_Object(std::string type)
 						arr.push_back(object);
 				}
 				else
-					if (object->Get_Type() == type and object->Get_Target_People() == nullptr)
+					if (object->Get_Type() == type and (object->Get_Target_People() == nullptr or object->Get_Target_People() == this))
 						arr.push_back(object);
 			}
 		}
@@ -273,7 +324,7 @@ void People::Find_Place_For_Building(std::string type)
 		{
 			if (Chech_Place(i, j))
 			{
-				target = new Scaffolding(sf::Vector2f(j * (WIN_WIDTH / MAP_WIDTH), i * (WIN_HEIGHT / MAP_HEIGHT)), type);
+				target = new Scaffolding(sf::Vector2f(j * (WIN_WIDTH / MAP_WIDTH), i * (WIN_HEIGHT / MAP_HEIGHT)), type, Game::Get_Instance()->Get_Texture("scaffolding"));
 				Game::Get_Instance()->Set_Object(i, j, target);
 				Game::Get_Instance()->Set_Object(i + 1, j, target);
 				Game::Get_Instance()->Set_Object(i, j + 1, target);
@@ -342,15 +393,19 @@ void People::Find_Shortest_Way()
 	}
 	wave.clear();
 	old_wave.clear();
-	//for (int i = 0; i < MAP_HEIGHT; i++)
-	//{
-	//	for (int j = 0; j < MAP_WIDTH; j++)
-	//		if (map[i][j] > 10)
-	//			std::cout << map[i][j] << " ";
-	//		else
-	//			std::cout << " " << map[i][j] << " ";
-	//	std::cout << std::endl;
-	//}
+	/*for (int i = 0; i < MAP_HEIGHT; i++)
+	{
+		for (int j = 0; j < MAP_WIDTH; j++)
+			if (map[i][j] > 10)
+				std::cout << map[i][j] << " ";
+			else
+				std::cout << " " << map[i][j] << " ";
+		std::cout << std::endl;
+	}*/
+	if (target != Game::Get_Instance()->Get_Object(target_pos.y / (WIN_HEIGHT / MAP_HEIGHT), target_pos.x / (WIN_WIDTH / MAP_WIDTH)))
+	{
+		target = nullptr;
+	}
 	if (target != nullptr)
 	{
 		if (target->Get_Type() == "house" or target->Get_Type() == "storage" or target->Get_Type() == "kitchen" or target->Get_Type() == "scaffolding")
@@ -362,7 +417,7 @@ void People::Find_Shortest_Way()
 
 void People::Change_Texture(int type)
 {
-	sf::Vector2u vector = texture.getSize();
+	sf::Vector2u vector = texture->getSize();
 	text_pos.left = 0;
 	text_pos.top = vector.y / 12 * type;
 	text_pos.width = vector.x / 5;
@@ -408,6 +463,7 @@ void People::Eat()
 								Village::Get_Instance()->Change_Count(-c, "cooked meat");
 								if (storage->Get_Storage(k)->Get_Count() == 0)
 								{
+									delete storage->Get_Storage(k);
 									storage->Reset_Storage(k);
 								}
 								c = 0;
@@ -416,6 +472,7 @@ void People::Eat()
 							{
 								Village::Get_Instance()->Change_Count(-storage->Get_Storage(k)->Get_Count(), "cooked meat");
 								c = storage->Get_Storage(k)->Change_Count(-storage->Get_Storage(k)->Get_Count());
+								delete storage->Get_Storage(k);
 								storage->Reset_Storage(k);
 							}
 				}
@@ -551,8 +608,15 @@ void People::Set_Inventory(int index, Inventory_Object* slot)
 	inventory[index] = slot;
 }
 
+void People::Set_Target(Interactable_Object* new_target)
+{
+	target = new_target;
+}
+
 void People::Reset_Target()
 {
+	if (target != nullptr)
+		target->Set_Target_People(nullptr);
 	target = nullptr;
 	way.clear();
 }
@@ -562,12 +626,53 @@ void People::Reset_Sleep()
 	sleep_count = max_sleep;
 }
 
+bool People::In_Building()
+{
+	return in_building;
+}
+
+int People::Interact_With_Dragon(Dragon* dragon, int damage)
+{
+	if (target != (Interactable_Object*)dragon)
+	{
+		if (target != nullptr)
+			target->Set_Target_People(nullptr);
+		target = (Interactable_Object*)dragon;
+	}
+	heal_points -= damage;
+	if (heal_points <= 0)
+		is_alive = false;
+	was_update = true;
+	return damage;
+}
+
 void People::Attack()
 {
+	if (heal_points > 0)
+	{
+		Messenger* message = new Messenger;
+		message->type = Types::attack_animal;
+		message->attack_animal.target = (Animal*)target;
+		message->attack_animal.damage = damage;
+		Game::Get_Instance()->Send_Message(message);
+	}
+}
+
+void People::Attack_Enemy()
+{
 	Messenger* message = new Messenger;
-	message->type = Types::attack_animal;
-	message->attack_animal.target = (Animal*)target;
-	message->attack_animal.damage = damage;
+	message->type = Types::attack_enemy;
+	message->attack_enemy.target = (Enemy*)target;
+	message->attack_enemy.damage = damage;
+	Game::Get_Instance()->Send_Message(message);
+}
+
+void People::Attack_Thief()
+{
+	Messenger* message = new Messenger;
+	message->type = Types::attack_thief;
+	message->attack_thief.target = (Thief*)target;
+	message->attack_thief.damage = damage;
 	Game::Get_Instance()->Send_Message(message);
 }
 
@@ -641,7 +746,7 @@ void People::Show()
 
 	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
 	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 8 - WIN_HEIGHT / MAP_HEIGHT));
-	image.setTexture(&texture);
+	image.setTexture(texture);
 	image.setTextureRect(text_pos);
 	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
 	back.setPosition(sf::Vector2f(0, 0));

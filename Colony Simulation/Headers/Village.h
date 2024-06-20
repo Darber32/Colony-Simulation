@@ -1,9 +1,11 @@
 #pragma once
 #include <iostream>
 #include "People.h"
+#include "Storage.h"
+#include "Enemy.h"
+#include "Thief.h"
 #include <map>
 #include <vector>
-#include <D:\ВУЗ\Программирование лабы\Colony Simulation\Colony Simulation\Headers\Storage.h>
 
 class Village
 {
@@ -12,7 +14,7 @@ private:
 	std::map<std::string, int> res_count, res_max;
 	std::vector<People*> people_arr;
 	std::vector<Storage*> storage_arr;
-	int counter, timer;
+	int counter, enemy_counter, thief_counter, enemy_spawn_counter, thief_spawn_counter, timer;
 	Village();
 	~Village();
 	void Remove_Materials(int count, std::string type);
@@ -29,5 +31,9 @@ public:
 	void Delete_Storage(Storage* storage);
 	void Remove_Materials(std::pair<int, int> resources);
 	bool Can_Build(std::string type);
+	void Spawn_Enemy();
+	void Spawn_Thief();
+	void Enemy_Died();
+	void Thief_Died();
 };
 

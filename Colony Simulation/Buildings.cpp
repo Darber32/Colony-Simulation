@@ -2,12 +2,17 @@
 
 Buildings::Buildings()
 {
+	is_interactable = true;
+	is_alive = false;
 	old_position = sf::Vector2u(0, 0);
 	is_anybody_inside = false;
+
 }
 
 Buildings::~Buildings()
 {
+	if (who_target != nullptr and who_target->Get_Target() == this)
+		who_target->Reset_Target();
 	int y = Get_Index().y, x = Get_Index().x;
 	Game::Get_Instance()->Set_Object(y + 1, x, nullptr);
 	Game::Get_Instance()->Set_Object(y, x + 1, nullptr);

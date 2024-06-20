@@ -7,7 +7,7 @@ private:
 	int sleep_count, max_sleep;
 	void Interact();
 public:
-	House(sf::Vector2f pos);
+	House(sf::Vector2f pos, sf::Texture* tex);
 	void Show();
 };
 

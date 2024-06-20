@@ -1,10 +1,12 @@
 #pragma once
 #include "People.h"
 #include "Animal.h"
+#include "Enemy.h"
+#include "Thief.h"
 
 enum class Types
 {
-	death, empty_slot, move, attack_animal, attack_people
+	death, empty_slot, attack_animal, attack_people, attack_enemy, attack_thief
 };
 
 struct Messenger
@@ -17,18 +19,12 @@ struct Messenger
 		{
 			Object* dying;
 		} death;
-		struct
+		/*struct
 		{
 			People* people;
 			Inventory_Object* slot;
 			int index;
-		} empty_slot;
-		struct
-		{
-			People* target;
-			Animal * animal;
-			sf::Vector2u pos;
-		} move;
+		} empty_slot;*/
 		struct
 		{
 			Animal* target;
@@ -39,6 +35,16 @@ struct Messenger
 			People* target;
 			int damage;
 		} attack_people;
+		struct
+		{
+			Enemy* target;
+			int damage;
+		} attack_enemy;
+		struct
+		{
+			Thief* target;
+			int damage;
+		} attack_thief;
 	};
 };
 

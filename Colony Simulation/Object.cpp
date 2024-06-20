@@ -32,3 +32,13 @@ sf::Vector2u Object::Get_Index()
 {
 	return sf::Vector2u(model.getPosition().x / (WIN_WIDTH / MAP_WIDTH), model.getPosition().y / (WIN_HEIGHT / MAP_HEIGHT));
 }
+
+bool Object::Is_Alive()
+{
+	return is_alive;
+}
+
+bool Object::Is_Interactable()
+{
+	return is_interactable;
+}

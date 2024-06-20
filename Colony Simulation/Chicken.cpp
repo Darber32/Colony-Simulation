@@ -2,7 +2,7 @@
 #include "Headers/Main.h"
 #include "Headers/Messenger.h"
 
-Chicken::Chicken(sf::Vector2f pos)
+Chicken::Chicken(sf::Vector2f pos, sf::Texture* tex)
 {
 	meat_count = rand() % 31 + 10;
 	run_count = 0;
@@ -10,11 +10,12 @@ Chicken::Chicken(sf::Vector2f pos)
 	need_run = false;
 	type = "chicken";
 	hp = 5;
-	texture.loadFromFile("Images/Animals/Chicken.png");
-	sf::Vector2u vector = texture.getSize();
+	//texture.loadFromFile("Images/Animals/Chicken.png");
+	texture = tex;
+	sf::Vector2u vector = texture->getSize();
 	model.setPosition(pos);
 	model.setSize(sf::Vector2f(WIN_WIDTH / MAP_WIDTH, WIN_HEIGHT / MAP_HEIGHT));
-	model.setTexture(&texture);
+	model.setTexture(texture);
 	text_pos.left = 0;
 	text_pos.top = 0;
 	text_pos.width = vector.x / 4;
@@ -86,12 +87,6 @@ void Chicken::Move()
 		pos.x = new_x * (WIN_WIDTH / MAP_WIDTH);
 		pos.y = new_y * (WIN_HEIGHT / MAP_HEIGHT);
 		model.setPosition((sf::Vector2f)pos);
-		Messenger* message = new Messenger;
-		message->type = Types::move;
-		message->move.animal = this;
-		message->move.target = who_target;
-		message->move.pos = pos;
-		Game::Get_Instance()->Send_Message(message);
 		was_update = true;
 		run_count++;
 	}
@@ -136,12 +131,6 @@ void Chicken::Run()
 		pos.x = new_x * (WIN_WIDTH / MAP_WIDTH);
 		pos.y = new_y * (WIN_HEIGHT / MAP_HEIGHT);
 		model.setPosition((sf::Vector2f)pos);
-		Messenger* message = new Messenger;
-		message->type = Types::move;
-		message->move.animal = this;
-		message->move.target = who_target;
-		message->move.pos = pos;
-		Game::Get_Instance()->Send_Message(message);
 		was_update = true;
 		run_count++;
 		if (run_count >= max_run)
@@ -205,7 +194,7 @@ void Chicken::Show()
 
 	image.setSize(sf::Vector2f(WIN_WIDTH / 9, WIN_HEIGHT / 9));
 	image.setPosition(sf::Vector2f(WIN_WIDTH / 9 * 4, WIN_HEIGHT / 9 * 5));
-	image.setTexture(&texture);
+	image.setTexture(texture);
 	image.setTextureRect(text_pos);
 
 	back.setSize(sf::Vector2f(WIN_WIDTH, WIN_HEIGHT));
@@ -283,6 +272,15 @@ void Chicken::Show()
 	}
 }
 
+int Chicken::Interact_With_Dragon(Dragon* dragon, int damage)
+{
+	hp -= damage;
+	if (hp <= 0)
+		is_alive = false;
+	need_run = true;
+	return 0;
+}
+
 void Chicken::Interact()
 {
 	who_target->Attack();
@@ -291,7 +289,7 @@ void Chicken::Interact()
 
 void Chicken::Change_Texture(int type)
 {
-	sf::Vector2u vector = texture.getSize();
+	sf::Vector2u vector = texture->getSize();
 	text_pos.left = 0;
 	text_pos.top = vector.y / 4 * type;
 	text_pos.width = vector.x / 4;
